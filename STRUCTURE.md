@@ -53,20 +53,13 @@ There are a few slight variations on AdamW, pleae note the following:
 
 You can check your optimizer implementation using `optimizer_test.py`.
 
-## main.py
-This file contains the pipeline to 
-* Call the BERT model to encode the sentences for their contextualized representations
-* Fine-tune the BERT model on the downstream tasks
+## classifier.py
 
+In this file, you'll get a sense of how BERT is typically used for downstream tasks. You will implement a model to do sentiment classification on top of BERT embeddings.
 
-### SentenceEmbedding (to be implemented)
-This class is used to encode the sentences using BERT to obtain the pooled output representation of the sentence.
-You can start with a trivial implementation that just returns the plain BERT embeddings, and potentially
-play with it later.
+## multitask_classifier.py
 
-### train_multitask (to be implemented)
-This is where you'll implement fine-tuning. This should improve on top of your vanilla BERT
-implementation once that one is working.
+This is the starting point for the open-ended part of the project. You'll generalize your sentiment classification model to a multitask model, and choose how to train and improve it.
 
 ## base_bert.py
 
@@ -82,7 +75,7 @@ This is where `BertTokenizer` is defined. You won't need to modify this file in 
 This is where the configuration class is defined. You won't need to modify this file in your project.
 
 ## utils.py
-This file contains utility functions for various purpose. You won't need to modify this file in your project.
+This file contains utility functions for various purposes. You won't need to modify this file in your project.
  
 ## Reference
 [Vaswani el at. + 2017] Attention is all you need https://arxiv.org/pdf/1706.03762.pdf
