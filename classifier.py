@@ -51,8 +51,8 @@ class BertSentimentClassifier(torch.nn.Module):
     def forward(self, input_ids, attention_mask):
         '''Takes a batch of sentences and returns logits for sentiment classes'''
         # The final BERT contextualized embedding is the hidden state of [CLS] token (the first token).
-        # Note that you should consider what is the most appropriate output to return given that 
-        # currently use nll_loss instead of cross_entropy for training 
+        # HINT: you should consider what is the appropriate output to return given that
+        # the training loop currently uses F.cross_entropy as the loss function.
         ### TODO
         raise NotImplementedError
 
