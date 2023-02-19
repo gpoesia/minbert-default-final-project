@@ -362,8 +362,8 @@ if __name__ == "__main__":
         dev='data/ids-sst-dev.csv',
         test='data/ids-sst-test-student.csv',
         option=args.option,
-        dev_out = 'ids-sst-dev-out.csv',
-        test_out = 'ids-sst-test-out.csv'
+        dev_out = 'predictions/ids-sst-dev-out.csv',
+        test_out = 'predictions/ids-sst-test-out.csv'
     )
 
     train(config)
@@ -383,8 +383,8 @@ if __name__ == "__main__":
         dev='data/ids-cfimdb-dev.csv',
         test='data/ids-cfimdb-test-student.csv',
         option=args.option,
-        dev_out = 'ids-cfimdb-dev-out.csv',
-        test_out = 'ids-cfimdb-test-out.csv'
+        dev_out = 'predictions/ids-cfimdb-dev-out.csv',
+        test_out = 'predictions/ids-cfimdb-test-out.csv'
     )
 
     train(config)
