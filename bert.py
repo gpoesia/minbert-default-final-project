@@ -46,8 +46,15 @@ class BertSelfAttention(nn.Module):
     # multiply the attention scores to the value and get back V'
     # next, we need to concat multi-heads and recover the original shape [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
 
-    ### TODO
-    raise NotImplementedError
+    attention_score = torch.matmul(query, key.transpose(-1, -2))
+    attention_score = attention_score + attention_mask
+    attention_score = attention_score / math.sqrt(self.attention_head_size)
+    attention_score = F.softmax(attention_score, dim=-1)
+    attention_score = self.dropout(attention_score)
+    attention_value = torch.matmul(attention_score, value)
+    attention_value = attention_value.transpose(1, 2).contiguous()
+    attention_value = attention_value.view(attention_value.shape[0], attention_value.shape[1], self.all_head_size)
+    return attention_value
 
 
   def forward(self, hidden_states, attention_mask):
@@ -92,7 +99,7 @@ class BertLayer(nn.Module):
     dropout: the dropout to be applied 
     ln_layer: the layer norm to be applied
     """
-    # Hint: Remember that BERT applies to the output of each sub-layer, before it is added to the sub-layer input and normalized 
+    # Hint: Remember that BERT applies to the output of each sub-layer, before it is added to the sub-layer input and normalized
     ### TODO
     raise NotImplementedError
 

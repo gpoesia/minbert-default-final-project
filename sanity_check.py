@@ -15,6 +15,11 @@ outputs['last_hidden_state'] = outputs['last_hidden_state'] * att_mask
 sanity_data['last_hidden_state'] = sanity_data['last_hidden_state'] * att_mask
 
 for k in ['last_hidden_state', 'pooler_output']:
+    print("Checking {}".format(k))
+    print("Your output shape: {}".format(outputs[k].shape))
+    print("Sanity check shape: {}".format(sanity_data[k].shape))
+    print("Your output: {}".format(outputs[k]))
+    print("Sanity check output: {}".format(sanity_data[k]))
     assert torch.allclose(outputs[k], sanity_data[k], atol=1e-5, rtol=1e-3)
 print("Your BERT implementation is correct!")
 
