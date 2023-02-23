@@ -199,7 +199,7 @@ def model_eval_test_multitask(sentiment_dataloader,
             b_mask2 = b_mask2.to(device)
 
             logits = model.predict_similarity(b_ids1, b_mask1, b_ids2, b_mask2)
-            y_hat = logits.flatten().cpu().numpy()
+            y_hat = logits.sigmoid().flatten().cpu().numpy()
 
             sts_y_pred.extend(y_hat)
             sts_sent_ids.extend(b_sent_ids)
@@ -272,7 +272,7 @@ def test_model_multitask(args, model, device):
         with open(args.sst_dev_out, "w+") as f:
             print(f"dev sentiment acc :: {dev_sentiment_accuracy :.3f}")
             f.write(f"id \t Predicted_Sentiment \n")
-            for p, s in zip(dev_sst_sent_ids, test_sst_y_pred):
+            for p, s in zip(dev_sst_sent_ids, dev_sst_y_pred):
                 f.write(f"{p} , {s} \n")
 
         with open(args.sst_test_out, "w+") as f:
@@ -290,7 +290,6 @@ def test_model_multitask(args, model, device):
             f.write(f"id \t Predicted_Is_Paraphrase \n")
             for p, s in zip(test_para_sent_ids, test_para_y_pred):
                 f.write(f"{p} , {s} \n")
-
 
         with open(args.sts_dev_out, "w+") as f:
             print(f"dev sts corr :: {dev_sts_corr :.3f}")
