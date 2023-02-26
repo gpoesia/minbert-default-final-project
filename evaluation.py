@@ -199,7 +199,7 @@ def model_eval_test_multitask(sentiment_dataloader,
             b_mask2 = b_mask2.to(device)
 
             logits = model.predict_similarity(b_ids1, b_mask1, b_ids2, b_mask2)
-            y_hat = logits.sigmoid().flatten().cpu().numpy()
+            y_hat = logits.flatten().cpu().numpy()
 
             sts_y_pred.extend(y_hat)
             sts_sent_ids.extend(b_sent_ids)
