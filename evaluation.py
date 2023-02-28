@@ -241,8 +241,8 @@ def test_model_multitask(args, model, device):
         sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
                                         collate_fn=sst_dev_data.collate_fn)
 
-        para_test_data = SentencePairTestDataset(para_test_data, args, isRegression=True)
-        para_dev_data = SentencePairDataset(para_dev_data, args, isRegression=True)
+        para_test_data = SentencePairTestDataset(para_test_data, args)
+        para_dev_data = SentencePairDataset(para_dev_data, args) 
 
         para_test_dataloader = DataLoader(para_test_data, shuffle=True, batch_size=args.batch_size,
                                           collate_fn=para_test_data.collate_fn)
@@ -250,7 +250,7 @@ def test_model_multitask(args, model, device):
                                          collate_fn=para_dev_data.collate_fn)
 
         sts_test_data = SentencePairTestDataset(sts_test_data, args)
-        sts_dev_data = SentencePairDataset(sts_dev_data, args)
+        sts_dev_data = SentencePairDataset(sts_dev_data, args, isRegression=True)
 
         sts_test_dataloader = DataLoader(sts_test_data, shuffle=True, batch_size=args.batch_size,
                                          collate_fn=sts_test_data.collate_fn)
