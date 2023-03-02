@@ -1,10 +1,11 @@
-from typing import Dict, List, Optional, Union, Tuple, Callable
+import Dict, List, Optional, Union, Tuple, Callable
 import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from base_bert import BertPreTrainedModel
 from utils import *
+import numpy as np
 
 
 class BertSelfAttention(nn.Module):
@@ -34,6 +35,14 @@ class BertSelfAttention(nn.Module):
     proj = proj.transpose(1, 2)
     return proj
 
+  #the following helper function is used for whenever we need to normalize a vector
+  #https://stackoverflow.com/questions/21030391/how-to-normalize-a-numpy-array-to-a-unit-vector
+  def normalize(v):
+    norm = np.linalg.norm(v)
+    if norm == 0: 
+       return v
+    return v / norm
+
   def attention(self, key, query, value, attention_mask):
     # each attention is calculated following eq (1) of https://arxiv.org/pdf/1706.03762.pdf
     # attention scores are calculated by multiply query and key 
@@ -46,8 +55,29 @@ class BertSelfAttention(nn.Module):
     # multiply the attention scores to the value and get back V'
     # next, we need to concat multi-heads and recover the original shape [bs, seq_len, num_attention_heads * attention_head_size = hidden_size]
 
-    ### TODO
-    raise NotImplementedError
+
+    ##go back and add comments on the shapes Daniel!!!!!! 
+    #attention score calculation
+    print(torch.shape(query))
+    print(torch.shape(key))
+    #SHAPES: (???) @ (???).T -> (bs, num_attention_heads, seq_len, seq_len)
+    S = query @ key.T
+    #apply masking
+    #SHAPES:
+    masked_S = S @ attention_mask
+    #normalize the scores
+    norm_S = self.normalize(masked_S) #* (1.0 / math.sqrt(k.size(-1)))
+    #multiply attention scores to value
+    #SHAPES:
+    value_prime = F.softmax(norm_S) @ value
+
+    #concat multi-heads and recover the origional shape
+    bs, num_att_heads, seq_len, seq_len2 = torch.shape(S)
+    #SHAPES: (???) -> (bs, seq_len, hidden_size)
+    attn_value = torch.reshape(value_prime, (bs, seq_len, num_att_heads * self.attention_head_size))
+
+    return attn_value
+    #raise NotImplementedError
 
 
   def forward(self, hidden_states, attention_mask):
