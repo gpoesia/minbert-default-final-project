@@ -90,8 +90,7 @@ class MultitaskBERT(nn.Module):
                            input_ids_1, attention_mask_1,
                            input_ids_2, attention_mask_2):
         '''Given a batch of pairs of sentences, outputs a single logit corresponding to how similar they are.
-        Note that your output should be unnormalized (a logit); it will be passed to the sigmoid function
-        during evaluation, and handled as a logit by the appropriate loss function.
+        Note that your output should be unnormalized (a logit).
         '''
         ### TODO
         raise NotImplementedError
