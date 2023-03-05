@@ -1,4 +1,4 @@
-import Dict, List, Optional, Union, Tuple, Callable
+from typing import Dict, List, Optional, Union, Tuple, BinaryIO
 import math
 import torch
 import torch.nn as nn
@@ -35,6 +35,12 @@ class BertSelfAttention(nn.Module):
     proj = proj.transpose(1, 2)
     return proj
 
+  def add_padding(tensor):
+    if len(tensor[2]) != len(tensor[3]):
+      longer_seq = np.max(tensor[2], tensor[3])
+      return longer_seq
+
+
   #the following helper function is used for whenever we need to normalize a vector
   #https://stackoverflow.com/questions/21030391/how-to-normalize-a-numpy-array-to-a-unit-vector
   def normalize(v):
@@ -58,13 +64,24 @@ class BertSelfAttention(nn.Module):
 
     ##go back and add comments on the shapes Daniel!!!!!! 
     #attention score calculation
-    print(torch.shape(query))
-    print(torch.shape(key))
+
+    # print("Query size: " + str(query.shape)) # ->   Query size: torch.Size([2, 12, 8, 64])
+    # print("Key size: " + str(key.shape)) # ->   Key size: torch.Size([2, 12, 8, 64])
+
     #SHAPES: (???) @ (???).T -> (bs, num_attention_heads, seq_len, seq_len)
-    S = query @ key.T
+    # S = query @ key.T
+    # I think we don't need to transpose since they've already been transformed linearly?
+    S = query * key
+    # print("S size: " + str(S.shape)) # ->   S size: torch.Size([2, 12, 8, 64])
+    # print("Attention mask size: " + str(attention_mask.shape)) # ->   Attention mask size: torch.Size([2, 1, 1, 8])
+
+    # we need to pad the sequences
+    S = self.add_padding(S)
+
     #apply masking
     #SHAPES:
-    masked_S = S @ attention_mask
+    # masked_S = S @ attention_mask
+    S += S.T * attention_mask
     #normalize the scores
     norm_S = self.normalize(masked_S) #* (1.0 / math.sqrt(k.size(-1)))
     #multiply attention scores to value
@@ -150,7 +167,8 @@ class BertLayer(nn.Module):
     4. a add-norm that takes the input and output of the feed forward layer
     """
     
-    att_output = self.self_attention(self, hidden_states, attention_mask)
+    # att_output = self.self_attention(self, hidden_states, attention_mask)
+    att_output = self.self_attention(hidden_states, attention_mask)
     add_output = self.add_norm(self, hidden_states, att_output, self.attention_dense, self.attention_dropout, self.attention_layer_norm)
     feedfwd_output = self.interm_dense(add_output)
     feedfwd_output = self.interm_af(feedfwd_output)
@@ -196,26 +214,34 @@ class BertModel(BertPreTrainedModel):
     seq_length = input_shape[1]
 
     # Get word embedding from self.word_embedding into input_embeds.
-    inputs_embeds = None
     ### TODO
-    raise NotImplementedError
+    input_embeds = self.word_embedding(torch.Tensor(input_ids))
+    # raise NotImplementedError
 
 
     # Get position index and position embedding from self.pos_embedding into pos_embeds.
+    # position_ids was made 1D
+    # indexes all rows up to seq_length columns
     pos_ids = self.position_ids[:, :seq_length]
-
-    pos_embeds = None
     ### TODO
-    raise NotImplementedError
+    # pos_embeds = self.pos_embedding[:, :seq_length]
+    pos_embeds = self.pos_embedding(pos_ids)
+    # raise NotImplementedError
 
 
-    # Get token type ids, since we are not consider token type, just a placeholder.
+    # Get token type ids, since we do not consider token type, just a placeholder.
     tk_type_ids = torch.zeros(input_shape, dtype=torch.long, device=input_ids.device)
     tk_type_embeds = self.tk_type_embedding(tk_type_ids)
 
     # Add three embeddings together; then apply embed_layer_norm and dropout and return.
+    # includes word and position embeddings, the token types are negligible in calculation
     ### TODO
-    raise NotImplementedError
+    embeds = input_embeds + pos_embeds + tk_type_embeds
+    embeds = self.embed_layer_norm(embeds)
+    embeds = self.embed_dropout(embeds)
+
+    return embeds
+    # raise NotImplementedError
 
 
   def encode(self, hidden_states, attention_mask):
