@@ -75,15 +75,13 @@ class BertSelfAttention(nn.Module):
     # print("S size: " + str(S.shape)) # ->   S size: torch.Size([2, 12, 8, 64])
     # print("Attention mask size: " + str(attention_mask.shape)) # ->   Attention mask size: torch.Size([2, 1, 1, 8])
 
-    # we need to pad the sequences
-    S = self.add_padding(S)
 
     #apply masking
     #SHAPES:
     # masked_S = S @ attention_mask
-    S += S.T * attention_mask
+    S = S.T @ attention_mask
     #normalize the scores
-    norm_S = self.normalize(masked_S) #* (1.0 / math.sqrt(k.size(-1)))
+    norm_S = self.normalize(S) #* (1.0 / math.sqrt(k.size(-1)))
     #multiply attention scores to value
     #SHAPES:
     value_prime = F.softmax(norm_S) @ value
