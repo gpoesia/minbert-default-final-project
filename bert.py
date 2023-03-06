@@ -35,19 +35,14 @@ class BertSelfAttention(nn.Module):
     proj = proj.transpose(1, 2)
     return proj
 
-  def add_padding(tensor):
-    if len(tensor[2]) != len(tensor[3]):
-      longer_seq = np.max(tensor[2], tensor[3])
-      return longer_seq
-
 
   #the following helper function is used for whenever we need to normalize a vector
   #https://stackoverflow.com/questions/21030391/how-to-normalize-a-numpy-array-to-a-unit-vector
-  def normalize(v):
-    norm = np.linalg.norm(v)
-    if norm == 0: 
-       return v
-    return v / norm
+  # def normalize(v):
+  #   norm = np.linalg.norm(v)
+  #   if norm == 0:
+  #      return v
+  #   return v / norm
 
   def attention(self, key, query, value, attention_mask):
     # each attention is calculated following eq (1) of https://arxiv.org/pdf/1706.03762.pdf
@@ -69,26 +64,28 @@ class BertSelfAttention(nn.Module):
     # print("Key size: " + str(key.shape)) # ->   Key size: torch.Size([2, 12, 8, 64])
 
     #SHAPES: (???) @ (???).T -> (bs, num_attention_heads, seq_len, seq_len)
-    # S = query @ key.T
     # I think we don't need to transpose since they've already been transformed linearly?
-    S = query * key
-    # print("S size: " + str(S.shape)) # ->   S size: torch.Size([2, 12, 8, 64])
+    S = query @ key.mT
+    # print("S size: " + str(S.shape)) # ->   S size: torch.Size([2, 12, 8, 8])
     # print("Attention mask size: " + str(attention_mask.shape)) # ->   Attention mask size: torch.Size([2, 1, 1, 8])
 
+    # Apply mask
+    # or S.permute(*torch.arrange(x.ndim - 1, -1, -1))
+    S = S.mT * attention_mask
+    # Normalize the scores
+    # sqrt(d_k)
+    norm_S = S * (1.0 / math.sqrt(key.size(-1)))
+    # S has shape: [2, 12, 8, 8]
+    # Multiply attention scores to value
 
-    #apply masking
-    #SHAPES:
-    # masked_S = S @ attention_mask
-    S = S.T @ attention_mask
-    #normalize the scores
-    norm_S = self.normalize(S) #* (1.0 / math.sqrt(k.size(-1)))
-    #multiply attention scores to value
-    #SHAPES:
-    value_prime = F.softmax(norm_S) @ value
+    # value has shape: [2, 12, 8, 64]
+    softmax = nn.Softmax(dim=3)
+    value_prime = softmax(norm_S) @ value
 
-    #concat multi-heads and recover the origional shape
-    bs, num_att_heads, seq_len, seq_len2 = torch.shape(S)
-    #SHAPES: (???) -> (bs, seq_len, hidden_size)
+
+    # Concat multi-heads and recover the original shape
+    # S is shaped: [2, 12, 64, 8]
+    bs, num_att_heads, seq_len, seq_len2 = S.shape
     attn_value = torch.reshape(value_prime, (bs, seq_len, num_att_heads * self.attention_head_size))
 
     return attn_value
@@ -139,14 +136,17 @@ class BertLayer(nn.Module):
     """
     # Hint: Remember that BERT applies to the output of each sub-layer, before it is added to the sub-layer input and normalized 
 
-    #first lets transform the output using the dense_layer
-    #SHAPES:
+    # first lets transform the output using the dense_layer
     ln_out = dense_layer(output)
-    #next lets add this to the sub-layer input
+
+    # next lets add this to the sub-layer input
+    #   Ln shape: torch.Size([2, 64, 768])
+    #   Input shape: torch.Size([2, 8, 768])
+
     norm_input = ln_out + input
-    #normalize the result
+    # normalize the result
     norm = ln_layer(norm_input)
-    #apply dropout
+    # apply dropout
     final_norm = dropout(norm)
 
     return final_norm
@@ -167,11 +167,11 @@ class BertLayer(nn.Module):
     
     # att_output = self.self_attention(self, hidden_states, attention_mask)
     att_output = self.self_attention(hidden_states, attention_mask)
-    add_output = self.add_norm(self, hidden_states, att_output, self.attention_dense, self.attention_dropout, self.attention_layer_norm)
+    add_output = self.add_norm(hidden_states, att_output, self.attention_dense, self.attention_dropout, self.attention_layer_norm)
     feedfwd_output = self.interm_dense(add_output)
     feedfwd_output = self.interm_af(feedfwd_output)
     
-    return self.add_norm(self, add_output, feedfwd_output, self.out_dense, self.out_dropout, self.out_layer_norm)
+    return self.add_norm(add_output, feedfwd_output, self.out_dense, self.out_dropout, self.out_layer_norm)
     #raise NotImplementedError
 
 

@@ -1,8 +1,11 @@
+# cmd line for training: python3 classifier.py --option finetune --epochs 10 --lr 0.1 --batch_size 10 --hidden_dropout_prob 0.35
+
 import time, random, numpy as np, argparse, sys, re, os
 from types import SimpleNamespace
 import csv
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
@@ -37,7 +40,7 @@ class BertSentimentClassifier(torch.nn.Module):
         self.num_labels = config.num_labels
         self.bert = BertModel.from_pretrained('bert-base-uncased')
 
-        # Pretrain mode does not require updating bert paramters.
+        # Pretrain mode does not require updating bert parameters.
         for param in self.bert.parameters():
             if config.option == 'pretrain':
                 param.requires_grad = False
@@ -45,7 +48,10 @@ class BertSentimentClassifier(torch.nn.Module):
                 param.requires_grad = True
 
         ### TODO
-        raise NotImplementedError
+        self.dropout = nn.Dropout(0.2)
+        self.out_linear = nn.Linear(self.bert.config.hidden_size, 5)
+        self.softmax = nn.Softmax(dim=1)
+        # raise NotImplementedError
 
 
     def forward(self, input_ids, attention_mask):
@@ -54,7 +60,20 @@ class BertSentimentClassifier(torch.nn.Module):
         # HINT: you should consider what is the appropriate output to return given that
         # the training loop currently uses F.cross_entropy as the loss function.
         ### TODO
-        raise NotImplementedError
+        seq_output, last_tk = self.bert(input_ids, attention_mask)
+        print(str(seq_output.dtype))
+        out = self.dropout(last_tk)
+        out = self.linear(out)
+        return out
+
+
+        # _, pooler_output = self.bert(input_ids, attention_mask)
+        # # out = self.dropout(torch.Tensor(pooler_output))
+        # # out = self.out_linear(out)
+        # # logits = pooler_output
+        #
+        # return pooler_output
+        # raise NotImplementedError
 
 
 
