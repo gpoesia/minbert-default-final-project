@@ -59,7 +59,28 @@ class AdamW(Optimizer):
                 #    (incorporating the learning rate again).
 
                 ### TODO
-                raise NotImplementedError
+
+                #Lets first initalize our state if needed
+                if len(state) == 0:
+                    state['step'] = 0
+                    #we want exp moving average of gradient values
+                    state['exp_average'] = torch.zeros_like(p.data)
+                    #we also want moving average of the squared gradient values
+                    state['exp_average_sq'] = torch.zeros_like(p.data)
+                   
+                
+                exp_average, exp_average_sq = state['exp_average'], state['exp_average_sq']
+
+                
+                beta1, beta2 = group['betas']
+
+                state['step'] += 1 
+
+                # 1- Update first and second moments of the gradients
+
+
+
+                #raise NotImplementedError
 
 
         return loss
