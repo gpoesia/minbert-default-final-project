@@ -48,10 +48,15 @@ class BertSentimentClassifier(torch.nn.Module):
                 param.requires_grad = True
 
         ### TODO
-        self.dropout = nn.Dropout(0.2)
-        self.out_linear = nn.Linear(self.bert.config.hidden_size, 5)
-        self.softmax = nn.Softmax(dim=1)
-        # raise NotImplementedError
+        """
+        1. Encode the sentences using bert
+        2. get the pooled rep of each sentence
+        3. classify by using dropout on pooled output
+        4. project this with a linear layer
+        
+        """
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.out_linear = nn.Linear(config.hidden_size, self.num_labels)
 
 
     def forward(self, input_ids, attention_mask):
@@ -60,22 +65,13 @@ class BertSentimentClassifier(torch.nn.Module):
         # HINT: you should consider what is the appropriate output to return given that
         # the training loop currently uses F.cross_entropy as the loss function.
         ### TODO
-        seq_output, last_tk = self.bert(input_ids, attention_mask)
-        print(str(seq_output.dtype))
-        out = self.dropout(last_tk)
-        out = self.linear(out)
-        return out
 
+        # encode:
+        _, pooler_output = self.bert.forward(input_ids, attention_mask)
+        output = self.droupout(pooler_output)
+        output = self.out_linear(output)
 
-        # _, pooler_output = self.bert(input_ids, attention_mask)
-        # # out = self.dropout(torch.Tensor(pooler_output))
-        # # out = self.out_linear(out)
-        # # logits = pooler_output
-        #
-        # return pooler_output
-        # raise NotImplementedError
-
-
+        return output
 
 class SentimentDataset(Dataset):
     def __init__(self, dataset, args):
