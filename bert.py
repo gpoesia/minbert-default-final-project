@@ -38,11 +38,11 @@ class BertSelfAttention(nn.Module):
 
   #the following helper function is used for whenever we need to normalize a vector
   #https://stackoverflow.com/questions/21030391/how-to-normalize-a-numpy-array-to-a-unit-vector
-  # def normalize(v):
-  #   norm = np.linalg.norm(v)
-  #   if norm == 0:
-  #      return v
-  #   return v / norm
+  def normalize(v):
+     norm = np.linalg.norm(v)
+     if norm == 0:
+       return v
+     return v / norm
 
   def attention(self, key, query, value, attention_mask):
     # each attention is calculated following eq (1) of https://arxiv.org/pdf/1706.03762.pdf
@@ -65,28 +65,40 @@ class BertSelfAttention(nn.Module):
 
     #SHAPES: (???) @ (???).T -> (bs, num_attention_heads, seq_len, seq_len)
     # I think we don't need to transpose since they've already been transformed linearly?
-    S = query @ key.mT
-    # print("S size: " + str(S.shape)) # ->   S size: torch.Size([2, 12, 8, 8])
+    #S = torch.matmul(query, torch.reshape(key, (2, 12, 64, 8)))
+    #print("S size: " + str(S.shape)) # ->   S size: torch.Size([2, 12, 8, 8])
     # print("Attention mask size: " + str(attention_mask.shape)) # ->   Attention mask size: torch.Size([2, 1, 1, 8])
 
     # Apply mask
     # or S.permute(*torch.arrange(x.ndim - 1, -1, -1))
-    S = S.mT * attention_mask
+    #S = S @ torch.reshape(attention_mask, (1, 1, 8, 2))
     # Normalize the scores
     # sqrt(d_k)
-    norm_S = S * (1.0 / math.sqrt(key.size(-1)))
+    #norm_S = S * (1.0 / math.sqrt(key.size(-1)))
     # S has shape: [2, 12, 8, 8]
     # Multiply attention scores to value
 
     # value has shape: [2, 12, 8, 64]
-    softmax = nn.Softmax(dim=3)
-    value_prime = softmax(norm_S) @ value
+    #softmax = nn.Softmax(dim=3)
+    #value_prime = torch.reshape(value, (8, 12, 64, 2)) @ torch.reshape(softmax(norm_S), (8, 12, 2, 2))
+    #print(value_prime.shape)
+
+
+    bs, num_att_heads, seq_len, attention_head_size = key.size()
+    S = query @ key.transpose(-2, -1)
+    S = S * (1.0 / math.sqrt(key.size(-1)))
+    S = S + attention_mask
+    norm_S = F.softmax(S, dim=-1)
+    value_prime = norm_S @ value
+
+    attn_value = value_prime.transpose(1, 2).contiguous().view(bs, seq_len, self.attention_head_size * self.num_attention_heads)
 
 
     # Concat multi-heads and recover the original shape
     # S is shaped: [2, 12, 64, 8]
-    bs, num_att_heads, seq_len, seq_len2 = S.shape
-    attn_value = torch.reshape(value_prime, (bs, seq_len, num_att_heads * self.attention_head_size))
+    #bs, num_att_heads, seq_len, seq_len2 = S.shape
+    #attn_value = torch.reshape(value_prime, (bs, seq_len, num_att_heads * self.attention_head_size))
+    #print(attn_value)
 
     return attn_value
     #raise NotImplementedError
@@ -143,11 +155,9 @@ class BertLayer(nn.Module):
     #   Ln shape: torch.Size([2, 64, 768])
     #   Input shape: torch.Size([2, 8, 768])
 
-    norm_input = ln_out + input
+    norm_input = dropout(ln_out) + input
     # normalize the result
-    norm = ln_layer(norm_input)
-    # apply dropout
-    final_norm = dropout(norm)
+    final_norm = ln_layer(norm_input)
 
     return final_norm
 
@@ -165,8 +175,8 @@ class BertLayer(nn.Module):
     4. a add-norm that takes the input and output of the feed forward layer
     """
     
-    # att_output = self.self_attention(self, hidden_states, attention_mask)
-    att_output = self.self_attention(hidden_states, attention_mask)
+
+    att_output = self.self_attention.forward(hidden_states, attention_mask)
     add_output = self.add_norm(hidden_states, att_output, self.attention_dense, self.attention_dropout, self.attention_layer_norm)
     feedfwd_output = self.interm_dense(add_output)
     feedfwd_output = self.interm_af(feedfwd_output)
@@ -213,7 +223,8 @@ class BertModel(BertPreTrainedModel):
 
     # Get word embedding from self.word_embedding into input_embeds.
     ### TODO
-    input_embeds = self.word_embedding(torch.Tensor(input_ids))
+    #print(input_ids)
+    input_embeds = self.word_embedding(input_ids)
     # raise NotImplementedError
 
 
