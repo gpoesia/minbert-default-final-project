@@ -63,39 +63,50 @@ class AdamW(Optimizer):
                 ### TODO
                 # Initializing the state
                 if len(state) == 0:
-                    # Moving average of gradient values m_t
-                    state['exp_avg'] = torch.zeros_like(p.data)
-                    # Moving average of the squared gradient values v_t
-                    state['exp_avg_sq'] = torch.zeros_like(p.data)
                     # Time step
+                    state["time"] = 0
+                    # Moving average of gradient values m_t
+                    state["m"] = torch.zeros(grad.size(), dtype=torch.long)
+                    state["m"] = state["m"].to(grad.device)
+                    # Moving average of the squared gradient values v_t
+                    state["v"] = torch.zeros(grad.size(), dtype=torch.long)
+                    state["v"] = state["v"].to(grad.device)
                     state['step'] = 0
 
 
-                m_t, v_t, step = state['exp_avg'], state['exp_avg_sq'], state['step']
+                m_t, v_t, step, t = state["m"], state["v"], state['step'], state["time"]
                 beta1, beta2 = group['betas']
 
 
                 # We take one step for every theta
                 step += 1
-
+                # 1- Update first and second moments of the gradients
                 # Calculating the moving averages
                 # Here, m_{t-1} and v_{t-1} will always be the previous calculation before the update for the first step, they're 0!
                 # We also don't need to account for W and b separately
-                m_t = beta1 * m_t + (1 - beta1) * grad
-                v_t = beta2 * v_t + (1 - beta2) * (grad*grad)
+                t += 1
+                state["time"] += 1
+                #m_t = (beta1 * m_t) + ((1.0 - beta1) * grad)
+                state["m"] = (beta1 * m_t) + ((1.0 - beta1)*grad)
+                #v_t = (beta2 * v_t) + ((1.0 - beta2) * torch.square(grad))
+                state["v"] = (beta2 * v_t) + ((1.0 - beta2)*torch.square(grad))
 
-                # Applying bias correction
-                alpha = alpha * (np.sqrt(1 - beta2)/(1 - beta1))
+                # 2- Apply bias correction
+                #check: https://arxiv.org/abs/1412.6980
+                alpha_t = alpha * (math.sqrt(1.0 - (beta2 ** t))/(1.0 - (beta1 ** t)))
 
+                # 3- Update parameters (p.data)
                 # Updating params less efficiently
                 # m_t_corrected = m_t/(1 - beta1)
                 # v_t_corrected = v_t/(1 - beta2)
                 # p.data -= alpha * m_t_corrected/(np.sqrt(v_t_corrected) + group['eps'] + group['lr'] * p.data)
 
                 # Updating params
-                p_data_t = p.data
-                p.data -= alpha * m_t/(np.sqrt(v_t) + group['eps']) + group['lr'] * p.data
+                #p_data_t = p.data
+                p.data = p.data - ((alpha_t * state["m"]) / (torch.sqrt(state["v"]) + group['eps'])) #+ group['lr'] * p.data
 
+                # 4- After that main gradient-based update, update again using weight decay
+                #    (incorporating the learning rate again).
                 # Updating params using weight decay
                 # According to Ilya Loshchilov et al., Adam with decouple weight decay without a scheduled lr is simply adding lambda * theta_{t-1}
                 # p.data -= alpha * m_t/(np.sqrt(v_t) + group['eps']) + group['lr'] * p.data
@@ -104,7 +115,10 @@ class AdamW(Optimizer):
                 # p.data -= group['lr'] * (p.data + group['weight_decay'])
                 # p.data -= group['weight_decay'] * (alpha * m_t/(np.sqrt(v_t) + group['eps']) + group['lr'] * p.data)
 
-                return p.data
+                p.data = p.data - (group["weight_decay"] * alpha * p.data)
+
+
+               #return p.data
                 #raise NotImplementedError
         return loss
 
