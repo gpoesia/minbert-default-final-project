@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from bert import BertModel
+from classifier import BertSentimentClassifier, SentimentDataset
 from optimizer import AdamW
 from tqdm import tqdm
 
@@ -52,6 +53,13 @@ class MultitaskBERT(nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
         ### TODO
+
+        self.classifier = BertSentimentClassifier(config)
+        # we're going to need to load and process the larger dataset,
+        # hopefully can use similar structures from bert.py
+        # self.dataset = SentimentDataset(args.dataset)
+
+
         raise NotImplementedError
 
 
@@ -62,7 +70,10 @@ class MultitaskBERT(nn.Module):
         # When thinking of improvements, you can later try modifying this
         # (e.g., by adding other layers).
         ### TODO
-        raise NotImplementedError
+
+        embeds = self.bert.embed(input_ids, attention_mask)
+
+        return embeds
 
 
     def predict_sentiment(self, input_ids, attention_mask):
@@ -72,7 +83,11 @@ class MultitaskBERT(nn.Module):
         Thus, your output should contain 5 logits for each sentence.
         '''
         ### TODO
-        raise NotImplementedError
+
+        logits = self.classifier.forward(input_ids, attention_mask)
+
+        return logits
+
 
 
     def predict_paraphrase(self,
@@ -83,7 +98,9 @@ class MultitaskBERT(nn.Module):
         during evaluation, and handled as a logit by the appropriate loss function.
         '''
         ### TODO
-        raise NotImplementedError
+
+
+        # raise NotImplementedError
 
 
     def predict_similarity(self,
