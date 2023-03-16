@@ -67,8 +67,8 @@ class BertSentimentClassifier(torch.nn.Module):
         ### TODO
 
         # encode:
-        pooler_output = self.bert.forward(input_ids, attention_mask)[0]
-        output = self.dropout(pooler_output)
+        pooler = self.bert.forward(input_ids, attention_mask)['pooler_output']
+        output = self.dropout(pooler)
         output = self.out_linear(output)
 
         return output
