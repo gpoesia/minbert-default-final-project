@@ -53,14 +53,18 @@ class MultitaskBERT(nn.Module):
             elif config.option == 'finetune':
                 param.requires_grad = True
         ### TODO
-
-        self.classifier = BertSentimentClassifier(config)
         # we're going to need to load and process the larger dataset,
         # hopefully can use similar structures from bert.py
         # self.dataset = SentimentDataset(args.dataset)
 
+        self.linear = nn.Linear(BERT_HIDDEN_SIZE, N_SENTIMENT_CLASSES)
+        self.linear_paraphrase = nn.Linear(2 * BERT_HIDDEN_SIZE, 1)
 
-        raise NotImplementedError
+        self.classifier = BertSentimentClassifier(config)
+
+
+
+        #raise NotImplementedError
 
 
     def forward(self, input_ids, attention_mask):
@@ -71,7 +75,8 @@ class MultitaskBERT(nn.Module):
         # (e.g., by adding other layers).
         ### TODO
 
-        embeds = self.bert.embed(input_ids, attention_mask)
+        #need to use bert forward
+        embeds = self.bert.forward(input_ids, attention_mask)['pooler_output']
 
         return embeds
 
@@ -84,7 +89,10 @@ class MultitaskBERT(nn.Module):
         '''
         ### TODO
 
-        logits = self.classifier.forward(input_ids, attention_mask)
+        #logits = self.classifier.forward(input_ids, attention_mask)
+
+        x = self.forward(input_ids, attention_mask)['pooler_output']
+        logits = self.linear(x)
 
         return logits
 
@@ -99,6 +107,12 @@ class MultitaskBERT(nn.Module):
         '''
         ### TODO
 
+        log1 = self.forward(input_ids_1, attention_mask_1)['pooler_output']
+        log2 = self.forward(input_ids_2, attention_mask_2)['pooler_output']
+        concat_logs = torch.cat((log1, log2), dim=1)
+        logits = self.linear_paraphrase(concat_logs)
+
+        return logits
 
         # raise NotImplementedError
 
@@ -111,7 +125,15 @@ class MultitaskBERT(nn.Module):
         during evaluation, and handled as a logit by the appropriate loss function.
         '''
         ### TODO
-        raise NotImplementedError
+
+        log1 = self.forward(input_ids_1, attention_mask_1)['pooler_output']
+        log2 = self.forward(input_ids_2, attention_mask_2)['pooler_output']
+
+        predicted_similarity = torch.nn.functional.cosine_similarity(log1, log2)
+
+
+        return predicted_similarity
+        #raise NotImplementedError
 
 
 
@@ -201,6 +223,7 @@ def train_multitask(args):
 
 def test_model(args):
     with torch.no_grad():
+        #sss
         device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
         saved = torch.load(args.filepath)
         config = saved['model_config']
