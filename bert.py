@@ -296,5 +296,29 @@ class BertModel(BertPreTrainedModel):
 
     return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
 
+  def forward_with_CGU(self, input_ids, attention_mask):
+    """
+    input_ids: [batch_size, seq_len], seq_len is the max length of the batch
+    attention_mask: same size as input_ids, 1 represents non-padding tokens, 0 represents padding tokens
+    """
+    # get the embedding for each input token
+    embedding_output = self.embed(input_ids=input_ids)
 
+    # feed to a transformer (a stack of BertLayers)
+    sequence_output = self.encode(embedding_output, attention_mask=attention_mask)
+
+    #CGU:
+    unit = self.relu(sequence_output)
+    extended_attention_mask: torch.Tensor = get_extended_attention_mask(attention_mask, self.dtype)
+    unit = self.cgu_att.forward(unit, extended_attention_mask)
+
+    #based on article, i get the impression we want to multiply
+    sequence_output = sequence_output * unit
+
+    # get cls token hidden state
+    first_tk = sequence_output[:, 0]
+    first_tk = self.pooler_dense(first_tk)
+    first_tk = self.pooler_af(first_tk)
+
+    return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
 
