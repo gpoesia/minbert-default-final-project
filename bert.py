@@ -277,12 +277,12 @@ class BertModel(BertPreTrainedModel):
     return hidden_states
 
 
-  """
+
   def forward(self, input_ids, attention_mask):
-    " " "
+    """
     input_ids: [batch_size, seq_len], seq_len is the max length of the batch
     attention_mask: same size as input_ids, 1 represents non-padding tokens, 0 represents padding tokens
-    " " "
+    """
     # get the embedding for each input token
     embedding_output = self.embed(input_ids=input_ids)
 
@@ -295,6 +295,6 @@ class BertModel(BertPreTrainedModel):
     first_tk = self.pooler_af(first_tk)
 
     return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
-    """
+
 
 
