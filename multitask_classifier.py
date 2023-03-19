@@ -91,7 +91,7 @@ class MultitaskBERT(nn.Module):
 
         #logits = self.classifier.forward(input_ids, attention_mask)
 
-        x = self.forward(input_ids, attention_mask)['pooler_output']
+        x = self.forward(input_ids, attention_mask)
         logits = self.linear(x)
 
         return logits
@@ -107,8 +107,8 @@ class MultitaskBERT(nn.Module):
         '''
         ### TODO
 
-        log1 = self.forward(input_ids_1, attention_mask_1)['pooler_output']
-        log2 = self.forward(input_ids_2, attention_mask_2)['pooler_output']
+        log1 = self.forward(input_ids_1, attention_mask_1)
+        log2 = self.forward(input_ids_2, attention_mask_2)
         concat_logs = torch.cat((log1, log2), dim=1)
         logits = self.linear_paraphrase(concat_logs)
 
@@ -126,8 +126,8 @@ class MultitaskBERT(nn.Module):
         '''
         ### TODO
 
-        log1 = self.forward(input_ids_1, attention_mask_1)['pooler_output']
-        log2 = self.forward(input_ids_2, attention_mask_2)['pooler_output']
+        log1 = self.forward(input_ids_1, attention_mask_1)
+        log2 = self.forward(input_ids_2, attention_mask_2)
 
         predicted_similarity = torch.nn.functional.cosine_similarity(log1, log2)
 

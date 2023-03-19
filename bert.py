@@ -112,6 +112,7 @@ class BertSelfAttention(nn.Module):
     """
     # first, we have to generate the key, value, query for each token for multi-head attention w/ transform (more details inside the function)
     # of *_layers are of [bs, num_attention_heads, seq_len, attention_head_size]
+    #print(hidden_states.shape)
     key_layer = self.transform(hidden_states, self.key)
     value_layer = self.transform(hidden_states, self.value)
     query_layer = self.transform(hidden_states, self.query)
@@ -215,6 +216,11 @@ class BertModel(BertPreTrainedModel):
     self.pooler_dense = nn.Linear(config.hidden_size, config.hidden_size)
     self.pooler_af = nn.Tanh()
 
+    #CGU from Junyang Lin et al., 2018
+    self.relu = nn.ReLU()
+    self.cgu_att = BertSelfAttention(config)
+
+
     self.init_weights()
 
   def embed(self, input_ids):
@@ -270,11 +276,13 @@ class BertModel(BertPreTrainedModel):
 
     return hidden_states
 
+
+  """
   def forward(self, input_ids, attention_mask):
-    """
+    " " "
     input_ids: [batch_size, seq_len], seq_len is the max length of the batch
     attention_mask: same size as input_ids, 1 represents non-padding tokens, 0 represents padding tokens
-    """
+    " " "
     # get the embedding for each input token
     embedding_output = self.embed(input_ids=input_ids)
 
@@ -287,3 +295,6 @@ class BertModel(BertPreTrainedModel):
     first_tk = self.pooler_af(first_tk)
 
     return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
+    """
+
+
