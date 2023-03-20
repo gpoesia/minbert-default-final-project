@@ -46,8 +46,7 @@ class MultitaskBERT(nn.Module):
         super(MultitaskBERT, self).__init__()
         # You will want to add layers here to perform the downstream tasks.
         # Pretrain mode does not require updating bert paramters.
-        #self.bert = BertModel.from_pretrained('bert-base-uncased')
-        self.bert = bermodel
+        self.bert = BertModel.from_pretrained('bert-base-uncased')
         for param in self.bert.parameters():
             if config.option == 'pretrain':
                 param.requires_grad = False
@@ -61,7 +60,7 @@ class MultitaskBERT(nn.Module):
         self.linear = nn.Linear(BERT_HIDDEN_SIZE, N_SENTIMENT_CLASSES)
         self.linear_paraphrase = nn.Linear(2 * BERT_HIDDEN_SIZE, 1)
 
-        self.classifier = BertSentimentClassifier(config)
+        #self.classifier = BertSentimentClassifier(config)
 
 
 
