@@ -1,5 +1,3 @@
-# cmd line for training: python3 classifier.py --option finetune --epochs 10 --lr 0.1 --batch_size 10 --hidden_dropout_prob 0.35
-
 import time, random, numpy as np, argparse, sys, re, os
 from types import SimpleNamespace
 import csv
