@@ -8,6 +8,10 @@ from utils import *
 import numpy as np
 
 
+import transformer.Constants as Constants
+from transformer.Layers import DecoderLayer
+
+
 class BertSelfAttention(nn.Module):
   def __init__(self, config):
     super().__init__()
@@ -322,3 +326,113 @@ class BertModel(BertPreTrainedModel):
 
     return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
 
+# The two classes bellow come mostly from https://github.com/IwasakiYuuki/Bert-abstractive-text-summarization/blob/master/transformer/Models.py
+class Decoder(nn.Module):
+  ''' A decoder model with self attention mechanism. '''
+
+  def __init__(
+          self,
+          n_tgt_vocab, len_max_seq, d_word_vec,
+          n_layers, n_head, d_k, d_v,
+          d_model, d_inner, dropout=0.1):
+
+    super().__init__()
+    n_position = len_max_seq + 1
+
+    self.tgt_word_emb = nn.Embedding(
+      n_tgt_vocab, d_word_vec, padding_idx=Constants.PAD)
+
+    self.position_enc = nn.Embedding.from_pretrained(
+      get_sinusoid_encoding_table(n_position, d_word_vec, padding_idx=0),
+      freeze=True)
+
+    self.layer_stack = nn.ModuleList([
+      DecoderLayer(d_model, d_inner, n_head, d_k, d_v, dropout=dropout)
+      for _ in range(n_layers)])
+
+  def forward(self, tgt_seq, tgt_pos, src_seq, enc_output, return_attns=False):
+
+    dec_slf_attn_list, dec_enc_attn_list = [], []
+
+    # -- Prepare masks
+    non_pad_mask = get_non_pad_mask(tgt_seq)
+
+    slf_attn_mask_subseq = get_subsequent_mask(tgt_seq)
+    slf_attn_mask_keypad = get_attn_key_pad_mask(seq_k=tgt_seq, seq_q=tgt_seq)
+    slf_attn_mask = (slf_attn_mask_keypad + slf_attn_mask_subseq).gt(0)
+
+    dec_enc_attn_mask = get_attn_key_pad_mask(seq_k=src_seq, seq_q=tgt_seq)
+
+    # -- Forward
+    dec_output = self.tgt_word_emb(tgt_seq) + self.position_enc(tgt_pos)
+
+    for dec_layer in self.layer_stack:
+      dec_output, dec_slf_attn, dec_enc_attn = dec_layer(
+        dec_output, enc_output,
+        non_pad_mask=non_pad_mask,
+        slf_attn_mask=slf_attn_mask,
+        dec_enc_attn_mask=dec_enc_attn_mask)
+
+      if return_attns:
+        dec_slf_attn_list += [dec_slf_attn]
+        dec_enc_attn_list += [dec_enc_attn]
+
+    if return_attns:
+      return dec_output, dec_slf_attn_list, dec_enc_attn_list
+    return dec_output,
+
+class Transformer(nn.Module):
+  ''' A sequence to sequence model with attention mechanism. '''
+
+  def __init__(
+          self,
+          n_src_vocab, n_tgt_vocab, len_max_seq,
+          d_word_vec=512, d_model=512, d_inner=2048,
+          n_layers=6, n_head=8, d_k=64, d_v=64, dropout=0.1,
+          tgt_emb_prj_weight_sharing=True,
+          emb_src_tgt_weight_sharing=True):
+
+    super().__init__()
+
+    #we want our encoder to be our BertModel, but how would we initalize it here?
+    self.encoder = BertModel(config) '''(
+      n_src_vocab=n_src_vocab, len_max_seq=len_max_seq,
+      d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
+      n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
+      dropout=dropout) '''
+
+    self.decoder = Decoder(
+      n_tgt_vocab=n_tgt_vocab, len_max_seq=len_max_seq,
+      d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
+      n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
+      dropout=dropout)
+
+    self.tgt_word_prj = nn.Linear(d_model, n_tgt_vocab, bias=False)
+    nn.init.xavier_normal_(self.tgt_word_prj.weight)
+
+    assert d_model == d_word_vec, \
+      'To facilitate the residual connections, \
+       the dimensions of all module outputs shall be the same.'
+
+    if tgt_emb_prj_weight_sharing:
+      # Share the weight matrix between target word embedding & the final logit dense layer
+      self.tgt_word_prj.weight = self.decoder.tgt_word_emb.weight
+      self.x_logit_scale = (d_model ** -0.5)
+    else:
+      self.x_logit_scale = 1.
+
+    if emb_src_tgt_weight_sharing:
+      # Share the weight matrix between source & target word embeddings
+      assert n_src_vocab == n_tgt_vocab, \
+        "To share word embedding table, the vocabulary size of src/tgt shall be the same."
+      self.encoder.src_word_emb.weight = self.decoder.tgt_word_emb.weight
+
+  def forward(self, src_seq, src_pos, tgt_seq, tgt_pos):
+
+    tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
+
+    enc_output, *_ = self.encoder(src_seq, src_pos)
+    dec_output, *_ = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output)
+    seq_logit = self.tgt_word_prj(dec_output) * self.x_logit_scale
+
+    return seq_logit.view(-1, seq_logit.size(2))

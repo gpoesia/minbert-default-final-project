@@ -16,6 +16,8 @@ from datasets import SentenceClassificationDataset, SentencePairDataset, \
 
 from evaluation import model_eval_sst, test_model_multitask
 
+from transformer.Models import Decoder
+
 
 TQDM_DISABLE=True
 
@@ -59,6 +61,29 @@ class MultitaskBERT(nn.Module):
 
         self.linear = nn.Linear(BERT_HIDDEN_SIZE, N_SENTIMENT_CLASSES)
         self.linear_paraphrase = nn.Linear(2 * BERT_HIDDEN_SIZE, 1)
+
+
+        #Abstractive Summarization Initalization from https://github.com/IwasakiYuuki/Bert-abstractive-text-summarization/blob/master/models.py
+
+        self.encoder = self.bert
+        self.decoder = Decoder(
+            n_tgt_vocab=n_tgt_vocab, len_max_seq=len_max_seq,
+            d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
+            n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
+            dropout=dropout)
+        self.tgt_word_prj = nn.Linear(d_model, n_tgt_vocab, bias=False)
+        nn.init.xavier_normal_(self.tgt_word_prj.weight)
+        self.tgt_word_prj.weight = self.decoder.tgt_word_emb.weight
+        self.x_logit_scale = (d_model ** -0.5)
+        self.o_l = nn.Linear(d_model, 512, bias=False)
+        self.h_l = nn.Linear(512, 1, bias=True)
+        nn.init.xavier_normal_(self.o_l.weight)
+        nn.init.xavier_normal_(self.h_l.weight)
+        self.a_l_1 = nn.Linear(d_model, 512, bias=False)
+        self.a_l_2 = nn.Linear(d_model, 512, bias=False)
+        nn.init.xavier_normal_(self.a_l_1.weight)
+        nn.init.xavier_normal_(self.a_l_2.weight)
+
 
         #self.classifier = BertSentimentClassifier(config)
 
@@ -134,6 +159,24 @@ class MultitaskBERT(nn.Module):
 
         return predicted_similarity
         #raise NotImplementedError
+
+    def abs_summarization(self, input_ids, attention_mask, src_seq, tgt_seq, tgt_pos):
+        #code mostly from https://github.com/IwasakiYuuki/Bert-abstractive-text-summarization/blob/master/models.py
+        tgt_seq, tgt_pos = tgt_seq[:, :-1], tgt_pos[:, :-1]
+
+        #unlike the github repo, our encoder takes in input ids and attention mask
+        enc_output, _ = self.encoder.forward(input_ids, attention_mask)['pooler_output']
+        dec_output, *_ = self.decoder(tgt_seq, tgt_pos, src_seq, enc_output)
+
+        #        o = self.o_l(dec_output)
+        #        p_gen = torch.sigmoid(self.h_l(o).view(-1, 1))
+
+        seq_logit = self.tgt_word_prj(dec_output) * self.x_logit_scale
+        #        a = self.a_l_1(dec_output)
+        #        a = torch.bmm(a, enc_output)
+        #        a = self.a_l_2(a)
+
+        return seq_logit.view(-1, seq_logit.size(2))
 
 
 
