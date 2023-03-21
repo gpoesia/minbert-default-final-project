@@ -60,7 +60,7 @@ class MultitaskBERT(nn.Module):
         self.linear = nn.Linear(BERT_HIDDEN_SIZE, N_SENTIMENT_CLASSES)
         self.linear_paraphrase = nn.Linear(2 * BERT_HIDDEN_SIZE, 1)
 
-        self.classifier = BertSentimentClassifier(config)
+        #self.classifier = BertSentimentClassifier(config)
 
 
 
