@@ -361,10 +361,12 @@ def get_args():
     return args
 
 if __name__ == "__main__":
+    start_time = time.time()
     args = get_args()
     seed_everything(args.seed)
     #args.filepath = f'{args.option}-{args.epochs}-{args.lr}.pt'
 
+    sst_time = time.time()
     print('Training Sentiment Classifier on SST...')
     config = SimpleNamespace(
         filepath='sst-classifier.pt',
@@ -380,12 +382,13 @@ if __name__ == "__main__":
         dev_out = 'predictions/'+args.option+'-sst-dev-out.csv',
         test_out = 'predictions/'+args.option+'-sst-test-out.csv'
     )
-
     train(config)
 
     print('Evaluating on SST...')
     test(config)
+    print("Time to train and eval SST: {:.2f}s".format(time.time() - sst_time))
 
+    cfimdb_time = time.time()
     print('Training Sentiment Classifier on cfimdb...')
     config = SimpleNamespace(
         filepath='cfimdb-classifier.pt',
@@ -406,3 +409,5 @@ if __name__ == "__main__":
 
     print('Evaluating on cfimdb...')
     test(config)
+    print("Time to train and eval SST: {:.2f}s".format(time.time() - cfimdb_time))
+    print("Total time elapsed: {:.2f}s".format(time.time() - start_time))

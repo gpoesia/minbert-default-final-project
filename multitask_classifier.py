@@ -276,8 +276,10 @@ def get_args():
     return args
 
 if __name__ == "__main__":
+    start = time.time()
     args = get_args()
     args.filepath = f'{args.option}-{args.epochs}-{args.lr}-multitask.pt' # save path
     seed_everything(args.seed)  # fix the seed for reproducibility
     train_multitask(args)
     test_model(args)
+    print("Total time elapsed when training on SST: {:.2f}s".format(time.time() - start))
