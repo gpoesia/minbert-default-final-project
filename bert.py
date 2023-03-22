@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from base_bert import BertPreTrainedModel
-from utils import *
+from dfp_utils import *
 import numpy as np
 
 
@@ -251,11 +251,11 @@ class BertModel(BertPreTrainedModel):
     # Add three embeddings together; then apply embed_layer_norm and dropout and return.
     # includes word and position embeddings, the token types are negligible in calculation
     ### TODO
-    hidden_states = input_embeds + pos_embeds + tk_type_embeds
-    hidden_states = self.embed_layer_norm(hidden_states)
-    hidden_states = self.embed_dropout(hidden_states)
+    embeds = input_embeds + pos_embeds + tk_type_embeds
+    embeds = self.embed_layer_norm(embeds)
+    embeds = self.embed_dropout(embeds)
 
-    return hidden_states
+    return embeds
 
 
   def encode(self, hidden_states, attention_mask):

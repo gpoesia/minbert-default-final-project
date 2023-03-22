@@ -3,7 +3,7 @@ import os
 import json
 from collections import OrderedDict
 import torch
-from utils import CONFIG_NAME, hf_bucket_url, cached_path, is_remote_url
+from dfp_utils import CONFIG_NAME, hf_bucket_url, cached_path, is_remote_url
 
 class PretrainedConfig(object):
   model_type: str = ""

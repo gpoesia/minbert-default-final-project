@@ -6,13 +6,14 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from bert import BertModel
+from bert import BertModel, BertSelfAttention
 from classifier import BertSentimentClassifier, SentimentDataset
 from optimizer import AdamW
 from tqdm import tqdm
 
 from dfp_datasets import SentenceClassificationDataset, SentencePairDataset, \
     load_multitask_data, load_multitask_test_data
+from dfp_utils import get_extended_attention_mask
 
 from evaluation import model_eval_sst, test_model_multitask
 
@@ -33,10 +34,10 @@ def seed_everything(seed=11711):
 BERT_HIDDEN_SIZE = 768
 N_SENTIMENT_CLASSES = 5
 
-def grab_laysum(dataset):
-    test_data = load_data(args.test, 'test')
-    test_dataset = SentimentTestDataset(test_data, args)
-    test_dataloader = DataLoader(test_dataset, shuffle=False, batch_size=args.batch_size, collate_fn=test_dataset.collate_fn)
+# def grab_laysum(dataset):
+#     test_data = load_data(args.test, 'test')
+#     test_dataset = SentimentTestDataset(test_data, args)
+#     test_dataloader = DataLoader(test_dataset, shuffle=False, batch_size=args.batch_size, collate_fn=test_dataset.collate_fn)
 
 class MultitaskBERT(nn.Module):
     def __init__(self, config):
@@ -57,6 +58,10 @@ class MultitaskBERT(nn.Module):
         self.linear = nn.Linear(BERT_HIDDEN_SIZE, N_SENTIMENT_CLASSES)
         self.linear_paraphrase = nn.Linear(2 * BERT_HIDDEN_SIZE, 1)
 
+        self.relu = nn.ReLU()
+        self.cgu_att = BertSelfAttention(config)
+        self.post_embed_cnn = nn.Conv1d(embed_size, embed_size, 2, padding='same')
+
         #self.classifier = BertSentimentClassifier(config)
 
 
@@ -68,9 +73,38 @@ class MultitaskBERT(nn.Module):
         # (e.g., by adding other layers).
         ### TODO
 
+        # embeds = self.bert.embed(input_ids)
+
         #need to use bert forward
-        pooler_output = self.bert.forward(input_ids, attention_mask)['pooler_output']
-        return pooler_output
+        pooler = self.bert.forward(input_ids, attention_mask)['pooler_output']
+        return pooler
+
+    def forward_conv(self, input_ids, attention_mask):
+      """
+      input_ids: [batch_size, seq_len], seq_len is the max length of the batch
+      attention_mask: same size as input_ids, 1 represents non-padding tokens, 0 represents padding tokens
+      """
+      # get the embedding for each input token
+      embedding_output = self.embed(input_ids=input_ids)
+
+      # feed to a transformer (a stack of BertLayers)
+      sequence_output = self.encode(embedding_output, attention_mask=attention_mask)
+
+      #CGU:
+      # unit = self.relu(sequence_output)
+      # extended_attention_mask: torch.Tensor = get_extended_attention_mask(attention_mask, self.dtype)
+      # unit = self.cgu_att.forward(unit, extended_attention_mask)
+      unit = self.post_embed_cnn(BERT_HIDDEN_SIZE, BERT_HIDDEN_SIZE, 2, padding = 'same')
+
+      #based on article, i get the impression we want to multiply
+      sequence_output = sequence_output * unit
+
+      # get cls token hidden state
+      first_tk = sequence_output[:, 0]
+      first_tk = self.pooler_dense(first_tk)
+      first_tk = self.pooler_af(first_tk)
+
+      return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
 
 
     def predict_sentiment(self, input_ids, attention_mask):

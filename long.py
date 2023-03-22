@@ -1,18 +1,17 @@
-import time, random, numpy as np, argparse, sys, re, os
-from types import SimpleNamespace
+# import time, random, numpy as np, argparse, sys, re, os
+# from types import SimpleNamespace
+#
+# import torch
+# from torch import nn
+# import torch.nn.functional as F
+# from torch.utils.data import DataLoader
+#
+# from bert import BertModel
+# from classifier import BertSentimentClassifier, SentimentDataset
+# from optimizer import AdamW
+# from tqdm import tqdm
 
-import torch
-from torch import nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
-
-from bert import BertModel
-from classifier import BertSentimentClassifier, SentimentDataset
-from optimizer import AdamW
-from tqdm import tqdm
-
-from dfp_datasets import SentenceClassificationDataset, SentencePairDataset, \
-    load_multitask_data, load_multitask_test_data
+from dfp_datasets import load_multitask_data, load_multitask_test_data
 
 # BertModel max seq len is 512: from tokenizer.py,
 # PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES = {
@@ -34,11 +33,10 @@ Preproccess
     - If doesn't work, split into paragraphs of <= 512 tokens and apply again if need
     
 """
-from datasets import load_dataset
-import datasets.utils
-from charset_normalizer import md__mypyc
-
-data = load_dataset('tomasg25/scientific_lay_summarisation')
-print(data)
+# from datasets import load_dataset
+# from charset_normalizer import md__mypyc
+#
+# data = load_dataset('tomasg25/scientific_lay_summarisation')
+# print(data)
 
 #%%
