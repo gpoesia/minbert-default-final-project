@@ -21,7 +21,7 @@ from sklearn.metrics import classification_report, f1_score, recall_score, accur
 from tqdm import tqdm
 import numpy as np
 
-from datasets import load_multitask_data, load_multitask_test_data, \
+from dfp_datasets import load_multitask_data, load_multitask_test_data, \
     SentenceClassificationDataset, SentenceClassificationTestDataset, \
     SentencePairDataset, SentencePairTestDataset
 

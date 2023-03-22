@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from base_bert import BertPreTrainedModel
-from utils import *
+from dfp_utils import *
 import numpy as np
 
 
@@ -221,8 +221,8 @@ class BertModel(BertPreTrainedModel):
     self.pooler_af = nn.Tanh()
 
     #CGU from Junyang Lin et al., 2018
-    self.relu = nn.ReLU()
-    self.cgu_att = BertSelfAttention(config)
+    # self.relu = nn.ReLU()
+    # self.cgu_att = BertSelfAttention(config)
 
 
     self.init_weights()
@@ -260,7 +260,6 @@ class BertModel(BertPreTrainedModel):
     embeds = self.embed_dropout(embeds)
 
     return embeds
-    # raise NotImplementedError
 
 
   def encode(self, hidden_states, attention_mask):
@@ -280,8 +279,6 @@ class BertModel(BertPreTrainedModel):
 
     return hidden_states
 
-
-
   def forward(self, input_ids, attention_mask):
     """
     input_ids: [batch_size, seq_len], seq_len is the max length of the batch
@@ -300,31 +297,31 @@ class BertModel(BertPreTrainedModel):
 
     return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
 
-  def forward_with_CGU(self, input_ids, attention_mask):
-    """
-    input_ids: [batch_size, seq_len], seq_len is the max length of the batch
-    attention_mask: same size as input_ids, 1 represents non-padding tokens, 0 represents padding tokens
-    """
-    # get the embedding for each input token
-    embedding_output = self.embed(input_ids=input_ids)
-
-    # feed to a transformer (a stack of BertLayers)
-    sequence_output = self.encode(embedding_output, attention_mask=attention_mask)
-
-    #CGU:
-    unit = self.relu(sequence_output)
-    extended_attention_mask: torch.Tensor = get_extended_attention_mask(attention_mask, self.dtype)
-    unit = self.cgu_att.forward(unit, extended_attention_mask)
-
-    #based on article, i get the impression we want to multiply
-    sequence_output = sequence_output * unit
-
-    # get cls token hidden state
-    first_tk = sequence_output[:, 0]
-    first_tk = self.pooler_dense(first_tk)
-    first_tk = self.pooler_af(first_tk)
-
-    return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
+  # def forward_with_CGU(self, input_ids, attention_mask):
+  #   """
+  #   input_ids: [batch_size, seq_len], seq_len is the max length of the batch
+  #   attention_mask: same size as input_ids, 1 represents non-padding tokens, 0 represents padding tokens
+  #   """
+  #   # get the embedding for each input token
+  #   embedding_output = self.embed(input_ids=input_ids)
+  #
+  #   # feed to a transformer (a stack of BertLayers)
+  #   sequence_output = self.encode(embedding_output, attention_mask=attention_mask)
+  #
+  #   #CGU:
+  #   unit = self.relu(sequence_output)
+  #   extended_attention_mask: torch.Tensor = get_extended_attention_mask(attention_mask, self.dtype)
+  #   unit = self.cgu_att.forward(unit, extended_attention_mask)
+  #
+  #   #based on article, i get the impression we want to multiply
+  #   sequence_output = sequence_output * unit
+  #
+  #   # get cls token hidden state
+  #   first_tk = sequence_output[:, 0]
+  #   first_tk = self.pooler_dense(first_tk)
+  #   first_tk = self.pooler_af(first_tk)
+  #
+  #   return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
 
 # The two classes bellow come mostly from https://github.com/IwasakiYuuki/Bert-abstractive-text-summarization/blob/master/transformer/Models.py
 class Decoder(nn.Module):
