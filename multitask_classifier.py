@@ -60,7 +60,6 @@ class MultitaskBERT(nn.Module):
         self.linear = nn.Linear(BERT_HIDDEN_SIZE, N_SENTIMENT_CLASSES)
         self.linear_paraphrase = nn.Linear(2 * BERT_HIDDEN_SIZE, 1)
 
-<<<<<<< HEAD
 
         #Abstractive Summarization Initalization from https://github.com/IwasakiYuuki/Bert-abstractive-text-summarization/blob/master/models.py
 
@@ -86,12 +85,10 @@ class MultitaskBERT(nn.Module):
 
         #self.classifier = BertSentimentClassifier(config)
 
-
-=======
         self.relu = nn.ReLU()
         self.cgu_att = BertSelfAttention(config)
         self.post_embed_cnn = nn.Conv1d(embed_size, embed_size, 2, padding='same')
->>>>>>> a5bff46584fff0224b8cc9d2a7738455939e9966
+
 
         #self.classifier = BertSentimentClassifier(config)
 
@@ -110,11 +107,12 @@ class MultitaskBERT(nn.Module):
         pooler = self.bert.forward(input_ids, attention_mask)['pooler_output']
         return pooler
 
+    """
     def forward_conv(self, input_ids, attention_mask):
-      """
+      " " "
       input_ids: [batch_size, seq_len], seq_len is the max length of the batch
       attention_mask: same size as input_ids, 1 represents non-padding tokens, 0 represents padding tokens
-      """
+      " " "
       # get the embedding for each input token
       embedding_output = self.embed(input_ids=input_ids)
 
@@ -136,6 +134,7 @@ class MultitaskBERT(nn.Module):
       first_tk = self.pooler_af(first_tk)
 
       return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
+      """
 
 
     def predict_sentiment(self, input_ids, attention_mask):
