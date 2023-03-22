@@ -34,10 +34,11 @@ Preproccess
     - If doesn't work, split into paragraphs of <= 512 tokens and apply again if need
     
 """
-import datasets
+from datasets import load_dataset
+import datasets.utils
 from charset_normalizer import md__mypyc
 
-data = datasets.load_dataset('tomasg25/scientific_lay_summarisation')
+data = load_dataset('tomasg25/scientific_lay_summarisation')
 print(data)
 
 #%%
