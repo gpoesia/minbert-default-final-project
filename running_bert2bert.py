@@ -120,9 +120,6 @@ trainer = Seq2SeqTrainer(
 )
 trainer.train()
 
-import datasets
-from transformers import BertTokenizer, EncoderDecoderModel
-
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 model = EncoderDecoderModel.from_pretrained("./checkpoint-16")
 model.to("cuda")
