@@ -6,10 +6,9 @@ import torch.nn.functional as F
 from base_bert import BertPreTrainedModel
 from dfp_utils import *
 import numpy as np
-
-
-import transformer.Constants as Constants
-from transformer.Layers import DecoderLayer
+#import transformers
+#import transformers.Constants as Constants
+#from transformers.Layers import DecoderLayer
 
 
 class BertSelfAttention(nn.Module):
@@ -323,6 +322,7 @@ class BertModel(BertPreTrainedModel):
   #
   #   return {'last_hidden_state': sequence_output, 'pooler_output': first_tk}
 
+"""
 # The two classes bellow come mostly from https://github.com/IwasakiYuuki/Bert-abstractive-text-summarization/blob/master/transformer/Models.py
 class Decoder(nn.Module):
   ''' A decoder model with self attention mechanism. '''
@@ -392,11 +392,12 @@ class Transformer(nn.Module):
     super().__init__()
 
     #we want our encoder to be our BertModel, but how would we initalize it here?
-    self.encoder = BertModel(config) '''(
-      n_src_vocab=n_src_vocab, len_max_seq=len_max_seq,
-      d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
-      n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
-      dropout=dropout) '''
+    self.encoder = BertModel(config)
+    '''(
+    n_src_vocab=n_src_vocab, len_max_seq=len_max_seq,
+    d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
+    n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
+    dropout=dropout) '''
 
     self.decoder = Decoder(
       n_tgt_vocab=n_tgt_vocab, len_max_seq=len_max_seq,
@@ -433,3 +434,4 @@ class Transformer(nn.Module):
     seq_logit = self.tgt_word_prj(dec_output) * self.x_logit_scale
 
     return seq_logit.view(-1, seq_logit.size(2))
+    """
