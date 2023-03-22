@@ -35,36 +35,25 @@ N_SENTIMENT_CLASSES = 5
 
 
 class MultitaskBERT(nn.Module):
-    '''
-    This module should use BERT for 3 tasks:
-
-    - Sentiment classification (predict_sentiment)
-    - Paraphrase detection (predict_paraphrase)
-    - Semantic Textual Similarity (predict_similarity)
-    '''
     def __init__(self, config):
         super(MultitaskBERT, self).__init__()
         # You will want to add layers here to perform the downstream tasks.
-        # Pretrain mode does not require updating bert paramters.
+        # Pretrain mode does not require updating bert parameters.
         self.bert = BertModel.from_pretrained('bert-base-uncased')
         for param in self.bert.parameters():
             if config.option == 'pretrain':
                 param.requires_grad = False
             elif config.option == 'finetune':
                 param.requires_grad = True
-        ### TODO
+
         # we're going to need to load and process the larger dataset,
         # hopefully can use similar structures from bert.py
         # self.dataset = SentimentDataset(args.dataset)
-
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.linear = nn.Linear(BERT_HIDDEN_SIZE, N_SENTIMENT_CLASSES)
         self.linear_paraphrase = nn.Linear(2 * BERT_HIDDEN_SIZE, 1)
 
         #self.classifier = BertSentimentClassifier(config)
-
-
-
-        #raise NotImplementedError
 
 
     def forward(self, input_ids, attention_mask):
@@ -76,9 +65,8 @@ class MultitaskBERT(nn.Module):
         ### TODO
 
         #need to use bert forward
-        embeds = self.bert.forward(input_ids, attention_mask)['pooler_output']
-
-        return embeds
+        pooler_output = self.bert.forward(input_ids, attention_mask)['pooler_output']
+        return pooler_output
 
 
     def predict_sentiment(self, input_ids, attention_mask):
@@ -91,12 +79,11 @@ class MultitaskBERT(nn.Module):
 
         #logits = self.classifier.forward(input_ids, attention_mask)
 
-        x = self.forward(input_ids, attention_mask)
-        logits = self.linear(x)
+        pooler = self.forward(input_ids, attention_mask)
+        logits = self.dropout(pooler)
+        logits = self.linear(logits)
 
         return logits
-
-
 
     def predict_paraphrase(self,
                            input_ids_1, attention_mask_1,
@@ -114,8 +101,6 @@ class MultitaskBERT(nn.Module):
 
         return logits
 
-        # raise NotImplementedError
-
 
     def predict_similarity(self,
                            input_ids_1, attention_mask_1,
@@ -129,13 +114,10 @@ class MultitaskBERT(nn.Module):
         log1 = self.forward(input_ids_1, attention_mask_1)
         log2 = self.forward(input_ids_2, attention_mask_2)
 
-        predicted_similarity = torch.nn.functional.cosine_similarity(log1, log2)
+        cosine_sim = torch.nn.functional.cosine_similarity(log1, log2)
 
-
-        return predicted_similarity
+        return cosine_sim
         #raise NotImplementedError
-
-
 
 
 def save_model(model, optimizer, args, config, filepath):
@@ -153,44 +135,57 @@ def save_model(model, optimizer, args, config, filepath):
     print(f"save the model to {filepath}")
 
 
-## Currently only trains on sst dataset
+## Want to switch to do Quora
 def train_multitask(args):
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
     # Create the data and its corresponding datasets and dataloader
-    sst_train_data, num_labels,para_train_data, sts_train_data = load_multitask_data(args.sst_train,args.para_train,args.sts_train, split ='train')
-    sst_dev_data, num_labels,para_dev_data, sts_dev_data = load_multitask_data(args.sst_dev,args.para_dev,args.sts_dev, split ='train')
+    sst_train_data, num_labels, para_train_data, sts_train_data = load_multitask_data(args.sst_train,args.para_train,args.sts_train, split ='train')
+    sst_dev_data, num_labels, para_dev_data, sts_dev_data = load_multitask_data(args.sst_dev,args.para_dev,args.sts_dev, split ='train')
 
     sst_train_data = SentenceClassificationDataset(sst_train_data, args)
     sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
 
-    sst_train_dataloader = DataLoader(sst_train_data, shuffle=True, batch_size=args.batch_size,
+    load_sst_train = DataLoader(sst_train_data, shuffle=True, batch_size=args.batch_size,
                                       collate_fn=sst_train_data.collate_fn)
-    sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
+    load_sst_dev = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
                                     collate_fn=sst_dev_data.collate_fn)
 
     # Init model
-    config = {'hidden_dropout_prob': args.hidden_dropout_prob,
-              'num_labels': num_labels,
-              'hidden_size': 768,
-              'data_dir': '.',
-              'option': args.option}
+    if args.option == 'pretrain':
+        config = {'hidden_dropout_prob': args.hidden_dropout_prob,
+                  'num_labels': num_labels,
+                  'hidden_size': 768,
+                  'data_dir': '.',
+                  'option': args.option}
 
-    config = SimpleNamespace(**config)
+        lr = 1e-3
+        config = SimpleNamespace(**config)
+        model = MultitaskBERT(config)
 
-    model = MultitaskBERT(config)
+    elif args.option == "finetune":
+        config = {'hidden_dropout_prob': args.hidden_dropout_prob,
+                  'num_labels': num_labels,
+                  'hidden_size': 768,
+                  'data_dir': '.',
+                  'option': args.option}
+        lr = 1e-5
+
+        saved = torch.load(args.filepath)
+        config = SimpleNamespace(**config)
+        model = MultitaskBERT(config)
+        model.load_state_dict(saved['model'])
+
     model = model.to(device)
 
-    lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
-
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
         model.train()
         train_loss = 0
         num_batches = 0
-        for batch in tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+        for batch in tqdm(load_sst_train, desc=f'train-{epoch}', disable=TQDM_DISABLE):
             b_ids, b_mask, b_labels = (batch['token_ids'],
                                        batch['attention_mask'], batch['labels'])
 
@@ -210,8 +205,8 @@ def train_multitask(args):
 
         train_loss = train_loss / (num_batches)
 
-        train_acc, train_f1, *_ = model_eval_sst(sst_train_dataloader, model, device)
-        dev_acc, dev_f1, *_ = model_eval_sst(sst_dev_dataloader, model, device)
+        train_acc, train_f1, *_ = model_eval_sst(load_sst_train, model, device)
+        dev_acc, dev_f1, *_ = model_eval_sst(load_sst_dev, model, device)
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
