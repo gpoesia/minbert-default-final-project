@@ -124,8 +124,6 @@ tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 model = EncoderDecoderModel.from_pretrained("./checkpoint-16")
 model.to("cuda")
 
-test_data = datasets.load_dataset("cnn_dailymail", "3.0.0", split="test")
-
 # only use 16 training examples for notebook - DELETE LINE FOR FULL TRAINING
 test_data = test_data.select(range(16))
 
