@@ -120,6 +120,8 @@ class MultitaskBERT(nn.Module):
         #raise NotImplementedError
 
 
+
+
 def save_model(model, optimizer, args, config, filepath):
     save_info = {
         'model': model.state_dict(),
@@ -135,57 +137,44 @@ def save_model(model, optimizer, args, config, filepath):
     print(f"save the model to {filepath}")
 
 
-## Want to switch to do Quora
+## Currently only trains on sst dataset
 def train_multitask(args):
     device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
     # Load data
     # Create the data and its corresponding datasets and dataloader
-    sst_train_data, num_labels, para_train_data, sts_train_data = load_multitask_data(args.sst_train,args.para_train,args.sts_train, split ='train')
-    sst_dev_data, num_labels, para_dev_data, sts_dev_data = load_multitask_data(args.sst_dev,args.para_dev,args.sts_dev, split ='train')
+    sst_train_data, num_labels,para_train_data, sts_train_data = load_multitask_data(args.sst_train,args.para_train,args.sts_train, split ='train')
+    sst_dev_data, num_labels,para_dev_data, sts_dev_data = load_multitask_data(args.sst_dev,args.para_dev,args.sts_dev, split ='train')
 
     sst_train_data = SentenceClassificationDataset(sst_train_data, args)
     sst_dev_data = SentenceClassificationDataset(sst_dev_data, args)
 
-    load_sst_train = DataLoader(sst_train_data, shuffle=True, batch_size=args.batch_size,
+    sst_train_dataloader = DataLoader(sst_train_data, shuffle=True, batch_size=args.batch_size,
                                       collate_fn=sst_train_data.collate_fn)
-    load_sst_dev = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
+    sst_dev_dataloader = DataLoader(sst_dev_data, shuffle=False, batch_size=args.batch_size,
                                     collate_fn=sst_dev_data.collate_fn)
 
     # Init model
-    if args.option == 'pretrain':
-        config = {'hidden_dropout_prob': args.hidden_dropout_prob,
-                  'num_labels': num_labels,
-                  'hidden_size': 768,
-                  'data_dir': '.',
-                  'option': args.option}
+    config = {'hidden_dropout_prob': args.hidden_dropout_prob,
+              'num_labels': num_labels,
+              'hidden_size': 768,
+              'data_dir': '.',
+              'option': args.option}
 
-        lr = 1e-3
-        config = SimpleNamespace(**config)
-        model = MultitaskBERT(config)
+    config = SimpleNamespace(**config)
 
-    elif args.option == "finetune":
-        config = {'hidden_dropout_prob': args.hidden_dropout_prob,
-                  'num_labels': num_labels,
-                  'hidden_size': 768,
-                  'data_dir': '.',
-                  'option': args.option}
-        lr = 1e-5
-
-        saved = torch.load(args.filepath)
-        config = SimpleNamespace(**config)
-        model = MultitaskBERT(config)
-        model.load_state_dict(saved['model'])
-
+    model = MultitaskBERT(config)
     model = model.to(device)
 
+    lr = args.lr
     optimizer = AdamW(model.parameters(), lr=lr)
     best_dev_acc = 0
+
     # Run for the specified number of epochs
     for epoch in range(args.epochs):
         model.train()
         train_loss = 0
         num_batches = 0
-        for batch in tqdm(load_sst_train, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+        for batch in tqdm(sst_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
             b_ids, b_mask, b_labels = (batch['token_ids'],
                                        batch['attention_mask'], batch['labels'])
 
@@ -205,8 +194,8 @@ def train_multitask(args):
 
         train_loss = train_loss / (num_batches)
 
-        train_acc, train_f1, *_ = model_eval_sst(load_sst_train, model, device)
-        dev_acc, dev_f1, *_ = model_eval_sst(load_sst_dev, model, device)
+        train_acc, train_f1, *_ = model_eval_sst(sst_train_dataloader, model, device)
+        dev_acc, dev_f1, *_ = model_eval_sst(sst_dev_dataloader, model, device)
 
         if dev_acc > best_dev_acc:
             best_dev_acc = dev_acc
@@ -273,7 +262,7 @@ def get_args():
 if __name__ == "__main__":
     start = time.time()
     args = get_args()
-    args.filepath = 'multitask.pt' # save path
+    args.filepath = f'{args.option}-{args.epochs}-{args.lr}-multitask.pt' # save path
     seed_everything(args.seed)  # fix the seed for reproducibility
     train_multitask(args)
     test_model(args)
