@@ -11,7 +11,7 @@ from classifier import BertSentimentClassifier, SentimentDataset
 from optimizer import AdamW
 from tqdm import tqdm
 
-from datasets import SentenceClassificationDataset, SentencePairDataset, \
+from dfp_datasets import SentenceClassificationDataset, SentencePairDataset, \
     load_multitask_data, load_multitask_test_data
 
 from evaluation import model_eval_sst, test_model_multitask
@@ -33,6 +33,10 @@ def seed_everything(seed=11711):
 BERT_HIDDEN_SIZE = 768
 N_SENTIMENT_CLASSES = 5
 
+def grab_laysum(dataset):
+    test_data = load_data(args.test, 'test')
+    test_dataset = SentimentTestDataset(test_data, args)
+    test_dataloader = DataLoader(test_dataset, shuffle=False, batch_size=args.batch_size, collate_fn=test_dataset.collate_fn)
 
 class MultitaskBERT(nn.Module):
     def __init__(self, config):

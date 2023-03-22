@@ -11,7 +11,7 @@ from classifier import BertSentimentClassifier, SentimentDataset
 from optimizer import AdamW
 from tqdm import tqdm
 
-from datasets import SentenceClassificationDataset, SentencePairDataset, \
+from dfp_datasets import SentenceClassificationDataset, SentencePairDataset, \
     load_multitask_data, load_multitask_test_data
 
 # BertModel max seq len is 512: from tokenizer.py,
@@ -34,3 +34,10 @@ Preproccess
     - If doesn't work, split into paragraphs of <= 512 tokens and apply again if need
     
 """
+import datasets
+from charset_normalizer import md__mypyc
+
+data = datasets.load_dataset('tomasg25/scientific_lay_summarisation')
+print(data)
+
+#%%
