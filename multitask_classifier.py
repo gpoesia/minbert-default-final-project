@@ -273,7 +273,7 @@ def get_args():
 if __name__ == "__main__":
     start = time.time()
     args = get_args()
-    args.filepath = f'{args.option}-{args.epochs}-{args.lr}-multitask.pt' # save path
+    args.filepath = 'multitask.pt' # save path
     seed_everything(args.seed)  # fix the seed for reproducibility
     train_multitask(args)
     test_model(args)
